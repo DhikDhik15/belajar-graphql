@@ -1,38 +1,31 @@
 const express = require('express')
-const { ApolloServer } = require('apollo-server-express')
-const jwt = require('express-jwt')
-const typeDefs = require('./schema')
-const resolvers = require('./resolvers')
-const JWT_SECRET = require('./constants')
+const { graphqlHTTP } = require('express-graphql')
+const MyGraphQLSchema = require('./schema')
+const mongoose = require('mongoose')
+require('dotenv').config()
 
 const app = express()
-const auth = jwt({
-  secret: JWT_SECRET,
-  credentialsRequired: false,
-  algorithms: ['sha1', 'RS256', 'HS256'],
-})
-app.use(auth)
 
-async function newApolloServer() {
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    playground: {
-      endpoint: '/graphql',
-    },
-    context: ({ req }) => {
-      user = req.headers.user
-        ? JSON.parse(req.headers.user)
-        : req.user
-        ? req.user
-        : null
-      return { user };
-    },
-  })
-  server.applyMiddleware({ app })
-  return app
-}
+mongoose.createConnection(process.env.MONGODB_URI, {
+  useUnifiedTopology: true,
+  useNewUrlParser: true
+})
+mongoose.connection.once('open', function (){
+  console.log('Connected to MongoDB')
+})
+.on("error", function (error) {
+  console.log("error is:", error);
+});
+
+app.use(
+  '/graphql',
+  graphqlHTTP({
+    schema: MyGraphQLSchema,
+    graphiql: true,
+  }),
+)
+
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
-  console.log('The server started on port ' + PORT)
+  console.log(`The server started on port ${PORT}`)
 })
